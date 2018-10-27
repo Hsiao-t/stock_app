@@ -1,3 +1,13 @@
+本程序是一个下载股票数据的小程序，本程序没有入口程序，下载后将data下的stock_data.sql文件导入到一个叫做stock_data的数据库中。运行sbin目录下的inst-srv程序，采集程序会写入crond调度表内自动调度运行。
+
+本程序只将数据写入数据库中，数据的使用需要另外编写程序
+
+运行环境
+-- Python 3.6.5+
+-- Tushare 财经库(Python)
+-- Postgresql 10+
+-- CROND 调度程序
+
 bod_data --获取董事会数据
 cons_data --获取一致预期数据
 csrc_idst --获取证监会行业数据
