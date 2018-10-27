@@ -1,0 +1,17 @@
+bod_data --获取董事会数据
+cons_data --获取一致预期数据
+csrc_idst --获取证监会行业数据
+get_rpt --下载财务报表
+stock_va --下载股票价格及市盈率等数据
+inst_data --机构调研数据
+store_rpt --将财务报表存储数据库
+refresh_mat_views --更新固化视图
+
+调用链:
+调度系统(crond)
+--> cons_data
+--> bod_data
+--> csrc_idst
+--> inst_data
+--> stock_va
+--> get_rpt --> store_rpt --> refresh_mat_views

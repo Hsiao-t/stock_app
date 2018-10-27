@@ -1,0 +1,103 @@
+#!/usr/bin/py
+
+# from IPython.core.interactiveshell import InteractiveShell
+# InteractiveShell.ast_node_interactivity = "all"
+
+import tushare as ts
+import requests as ro
+from time import sleep
+from pandas import DataFrame,read_csv,read_html
+#from io import StringIO
+from datetime import datetime
+import sys, time, json,os
+from psycopg2 import connect
+from sqlalchemy import create_engine
+
+class ProgressBar:
+    def __init__(self, count = 0, total = 0, width = 50):
+        self.count = count
+        self.total = total
+        self.width = width
+    def move(self):
+        self.count += 1
+    def log(self, s):
+        sys.stdout.write(' ' * (self.width + 9) + '\r')
+        sys.stdout.flush()
+        progress = int(self.width * self.count / self.total)
+        sys.stdout.write('{0:3}/{1:3}: '.format(self.count, self.total))
+        sys.stdout.write('>' * progress + '-' * (self.width - progress) + '\r')
+        if progress == self.width:
+            sys.stdout.write('\n')
+        sys.stdout.flush()
+
+
+def _subt_(x):
+    return 0 if x=='--' else x
+
+def _float_(x):
+    try:
+        y = float(x)
+    except:
+        y = x
+    return y
+
+# 下载行业分类
+# 缓存文件指向: ../data/csrc_db.csv
+def downloadSdb():
+    sdb_file = '../data/csrc_db.csv'
+    date = datetime.strftime(datetime.now(),'%Y-%m-%d')
+    odf = read_csv(sdb_file,encoding='gbk',index_col=0)
+    ndf = DataFrame()
+    codes = [int(x) for x in ts.get_stock_basics().index]
+    bar = ProgressBar(total=len(codes))
+    for code in codes:
+        if code in odf.index:
+            bar.move()
+            bar.log('')
+            continue
+        else:
+            code = str(code)
+            code = code[:6] if len(code)>=6 else '0'*(6-len(code))
+            stpl='http://www.csindex.com.cn/zh-CN/downloads/industry-price-earnings-ratio-detail?date={dt}&class=1&search=1&csrc_code={cd}'.format(dt=date,cd=code)
+            try:
+                ndf=ndf.append(read_html(stpl,header=0)[0])
+                sleep(0.01)
+                bar.move()
+                bar.log('')
+            except:
+                sleep(2)
+                ndf=ndf.append(read_html(stpl,header=0)[0])
+                sleep(0.01)
+                bar.move()
+                bar.log('')
+                continue
+    ndf.index=ndf['股票代码']
+    ndf.index.name='code'
+    ndf.columns=['x','y','name','class_code','class_name','idst_code','idst_name','pe','pe_ttm','pb','dpr']
+    odf = odf.append(ndf.iloc[:,2:])
+    odf.index.name='code'
+    tmp_c = odf.index
+    odf = odf.applymap(_subt_)
+    odf = odf.applymap(_float_)
+    odf.index = tmp_c
+    return odf
+
+if __name__ == '__main__':
+    wd = os.path.split(os.path.realpath(__file__))[0]
+    os.chdir(wd)
+    print("正在下载两市证监会行业数据...")
+    dbe = 'postgresql://dbo:@localhost/stock_data'
+    with open('../conf/conf.json') as fp:
+        dbe = json.load(fp)['db_engine']
+    t0 = datetime.now()
+    data = downloadSdb()
+    eg = connect(dbe)
+    cr = eg.cursor()
+    cr.execute('delete from _csrc;')
+    eg.commit()
+    eg.close()
+    eg = create_engine(dbe)
+    t1 = datetime.now()
+    print('下载完成',(t1-t0).total_seconds(),'秒！')
+    data.to_csv('../data/csrc_db.csv',encoding='gbk')
+    data.iloc[:,:5].to_sql('_csrc',eg,if_exists='append')

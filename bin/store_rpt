@@ -1,0 +1,57 @@
+#!/usr/bin/env python
+import sys,os
+
+work_dir = os.path.split(os.path.realpath(__file__))[0]
+os.chdir(work_dir)
+
+sys.path.append('../')
+from modules import *
+from threading import Thread,BoundedSemaphore,Lock
+
+sg_max_threads = BoundedSemaphore(5)
+lock = Lock()
+
+def save(f,tbl,logfile):
+  with sg_max_threads:
+    global fdata,db
+    code = f[3:9]
+    cn = connect(db)
+    df = read_csv(fdata + '{}'.format(f),index_col=0)
+    df = df.T
+    nrp = max(df.index)
+    t = df.to_json(force_ascii=False)
+    cu = cn.cursor()
+    cu.execute("delete from {} where code = {}".format(tbl,code))
+    cu.execute("insert into {}(code,rp,data) values ({},'{}','{}')".format(tbl,code,nrp,t))
+    cn.commit()
+    cu.close()
+    cn.close()
+  with lock:
+    logg(logfile,'Saved {} into table {}'.format(f,tbl)) 
+
+if __name__ == '__main__':
+#  work_dir = os.path.split(os.path.realpath(__file__))[0]
+#  os.chdir(work_dir)
+  conf = load_cfg('../conf/conf.json')
+  fdata = conf['fdata']
+  db = conf['db_engine']
+  __log__ = conf['log'].format(prog='store_rpt',ts=datetime.strftime(datetime.now(),"%Y%m%d.%H%M%S"))
+  files = os.listdir(fdata)
+  t = []
+  for f in files:
+    if f[:3] == 'bs_':
+      t.append(Thread(target=save,args=(f,'raw_bs',__log__)))
+    elif f[:3] == 'is_':
+      t.append(Thread(target=save,args=(f,'raw_is',__log__)))
+    elif f[:3]=='cf_':
+      t.append(Thread(target=save,args=(f,'raw_cf',__log__)))
+    else:
+      logg(__log__,"file {} is not an financial report".format(f))
+  for _ in t:
+    _.start()
+  for _ in t:
+    _.join()
+  logg(__log__,"Inserted {} records".format(len(t)))
+  logg(__log__,"refresh database...")
+  os.system('{}/refresh_mat_view stock_data dbo'.format(work_dir))
+  logg(__log__,"all done.")

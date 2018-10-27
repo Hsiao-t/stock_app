@@ -1,0 +1,64 @@
+#!/usr/bin/env python
+
+## 下载一致预期数据
+
+
+def inst_data(code):
+    code = str(code) + '01' if str(code)[0]=='6' else str(code)+ '02'
+    s_url = 'http://soft-f9.eastmoney.com/soft/gp66.php?code={}&exp=1'.format(code)
+    txt = ro.get(s_url).text
+    if txt.find('<!DOCTYPE html')>-1:
+        raise RuntimeError('无此股票信息')
+    ct = e2csv(txt)
+    data = read_csv(StringIO(ct)).to_json(force_ascii=0)
+    return data
+
+def insert_inst_data(code):
+    from psycopg2 import connect
+    r_sql = 'delete from _inst_data where code={};'.format(code)
+    data = inst_data(code)
+    db = 'postgresql://dbo:@localhost/stock_data'
+    sql = "insert into _inst_data(code,data) values ({},'{}')".format(code,data)
+    cn = connect(db)
+    cu = cn.cursor()
+    cu.execute(r_sql)
+    cu.execute(sql)
+    cn.commit()
+    cn.close()
+
+if __name__ == '__main__':
+
+    import os
+
+    wd = os.path.split(os.path.realpath(__file__))[0]
+    os.chdir(wd)
+
+    import sys
+    print(sys.version)
+    sys.path.append("../")
+    from modules import *
+    from io import StringIO
+    from modules.Utils import e2csv 
+    from time import sleep
+    
+    cfg = load_cfg('../conf/conf.json')
+    dt = datetime.strftime(datetime.now(),'%Y%m%d.%H%M%S')
+    dbe = cfg['db_engine']
+    __log__ = cfg['log'].format(prog='inst_data',ts=dt)
+    i = 0
+    stocks = tsu.get_stock_basics().index
+    for s in stocks:
+        print("正在存储:{}".format(s))
+        logg(__log__,"正在存储机构调研数据:{}".format(s))
+        try:
+            insert_inst_data(s)
+            i = i + 1
+        except RuntimeError as e:
+            logg(__log__,"错误：{} 无相关数据".format(s))
+            continue
+        except:
+            sleep(3)
+            insert_inst_data(s)
+            i = i + 1
+    print("已完成")
+    logg(__log__,"{}记录已完成!".format(i))

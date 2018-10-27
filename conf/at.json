@@ -1,0 +1,13 @@
+[
+
+  {
+    "job_cmd": "date",
+    "job_name": "run_date",
+    "format": 1,
+    "week_days": [0,1,2,3,4],
+    "month_days": [],
+    "month": [],
+    "time": [15,10]
+  }
+
+]

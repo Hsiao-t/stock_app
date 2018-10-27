@@ -1,0 +1,27 @@
+#!/usr/bin/py
+
+# 通过Tushare库下载基本股票列表
+import sys
+import os
+
+wd = os.path.split(os.path.realpath(__file__))[0]
+os.chdir(wd)
+
+sys.path.append("../")
+from modules import *
+
+
+conf = load_cfg('../conf/conf.json')
+db = conf['db_engine']
+__log__ = conf['log'].format(prog='running',ts='all')
+
+cn = create_engine(db)
+
+# 导入基本财经信息
+df = tsu.get_stock_basics()
+df = df.loc[:,['name','area','industry','outstanding','totals','holders']]
+rs = cn.connect().execute('delete from tsu_basics;')
+rs.close()
+df.to_sql('tsu_basics',cn,if_exists='append')
+print(datetime.now(),"基本财经信息", len(df), "条")
+logg(__log__,"基本财经信息:{}条".format(len(df)))

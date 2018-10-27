@@ -1,0 +1,7 @@
+{
+
+  "db_engine" : "postgresql://dbo:@localhost/stock_data",
+  "log": "../log/{prog}-{ts}.log",
+  "fdata" : "../data/stockf/"
+
+}

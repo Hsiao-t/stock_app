@@ -1,0 +1,42 @@
+#!/usr/bin/py
+# 本应用程式用于刷新数据库中的物化视图
+# 以多线程方式加快刷新速度
+import os
+work_dir = os.path.split(os.path.realpath(__file__))[0]
+os.chdir(work_dir)
+
+import sys
+sys.path.append("../modules")
+from threading import Thread
+from Utils import database_op
+from time import time
+
+def refresh_mat_views(database,user,passwd=''):
+  dsn = 'postgresql://{usr}:{passwd}@localhost/{db}'.format(usr=user,passwd=passwd,db=database)
+  sql_t = 'refresh materialized view {};'
+  t = []
+
+  q_mat = 'select matviewname from pg_matviews;'
+  data = database_op(dsn,q_mat)[2]
+  mat_views = [ _[0] for _ in data]
+  print(mat_views)
+
+  for view in mat_views:
+    t.append(
+      Thread(target=database_op,args=(dsn,sql_t.format(view)))
+    )
+
+  for _ in t:
+    _.start()
+  for _ in t:
+    _.join()
+
+if __name__ == '__main__':
+  start_time = time()
+#  refresh_mat_views('stock_data','dbo')
+  if len(sys.argv)!=3:
+    print("{} dbname dbuser".format(sys.argv[0]))
+  else:
+    refresh_mat_views(sys.argv[1],sys.argv[2])
+  end_time = time()
+  print("已完成刷新:{}秒".format(end_time-start_time))

@@ -1,0 +1,131 @@
+#!/usr/bin/env python
+
+"""
+本文件用于下载网易财经股票财务报表，每一个报表下载后随机暂停0到3秒后继续下载
+"""
+import random
+from time import sleep
+import sys,stat,os
+
+wd = os.path.split(os.path.realpath(__file__))[0]
+os.chdir(wd)
+
+sys.path.append('../')
+from modules import *
+from fcntl import flock,LOCK_EX,LOCK_UN
+CFURL = 'http://quotes.money.163.com/service/xjllb_{}.html'
+BSURL = 'http://quotes.money.163.com/service/zcfzb_{}.html'
+ISURL = 'http://quotes.money.163.com/service/lrb_{}.html'
+FLOCK = '.RPT_LOCK'
+
+conf = load_cfg('../conf/conf.json')
+
+__log__ = conf['log'].format(prog='get_rpt',ts=datetime.strftime(datetime.now(),'%Y%m%d.%H%M%S'))
+c_pref = conf['fdata'] + '{}_{}.csv'
+
+def _tcode(s):
+  l = len(str(s))
+  v = str(s)
+  if(l>6):
+    return v[:6]
+  elif l==6:
+    return v
+  else:
+    return ('0'*(6-l))+v
+
+def b_content(url,code='600660'):
+  import requests as ro
+  t = ""
+  with open(FLOCK,'w') as fp:
+    flock(fp,LOCK_EX)
+    t = ro.get(url.format(code),timeout=2).content.decode(encoding='gbk')
+    fp.write(url.format(code))
+    flock(fp,LOCK_UN)
+  t = t.replace('--','0').replace(' ','').replace(',\t','')
+  t = t.replace(',\r\n','\r\n')
+  if t[-1]==',':
+    t = t[:-1]
+  if t.find("报告日期")<0:
+    raise RuntimeError("File download exception: No key word 报告日期 Found!")
+  return t
+
+def save_data(code,dtype,content):
+  to_file = c_pref.format(dtype,code)
+  with open(to_file,'w+') as fp:
+    fp.write(content)
+
+def get_report(code,dtype):
+  if dtype=='bs':
+    save_data(code,dtype,b_content(BSURL,code=code))
+  elif dtype=='is':
+    save_data(code,dtype,b_content(ISURL,code=code))
+  else:
+    save_data(code,dtype,b_content(CFURL,code=code))
+
+def get_reportx(code,dtype,overwrite=0):
+  tofile = c_pref.format(dtype,code)
+# 如果覆盖下载则强制重新下载文件
+  if overwrite == 1:
+    try:
+      get_report(code,dtype)
+      sleep(0.01 * random.randint(0,300))
+      return 1
+    except Exception as e:
+      return 0
+
+  if not os.path.exists(tofile): # 文件不存在则下载文件
+    try:
+      get_report(code,dtype)
+      sleep(0.01 * random.randint(0,300))
+    except Exception as e:
+      return 0
+  else: # 文件过期重新下载
+    if (datetime.now()-datetime.fromtimestamp(os.stat(tofile)[stat.ST_CTIME])).days>=90:
+      try:
+        get_report(code,dtype)
+        sleep(0.01 * random.randint(0,300))
+      except Exception as e:
+        return 0
+  return 1
+
+def download_rpt(owrt=0):
+  s_num = 0
+  total_num = 0
+  stock_df = tsu.get_stock_basics()
+  names = stock_df['name']
+  codes = stock_df.index
+  total_num = len(codes)
+  for i in range(total_num):
+    print("正在下载：",codes[i],names[i])
+    logg(__log__,"正在下载: {},{}".format(codes[i],names[i]))
+    s_num = s_num + get_reportx(codes[i],'bs',overwrite=owrt)
+    s_num = s_num + get_reportx(codes[i],'is',overwrite=owrt)
+    s_num = s_num + get_reportx(codes[i],'cf',overwrite=owrt)
+
+  print("已下载/总量:{}/{}".format(s_num,total_num*3))
+  logg(__log__, "已下载/总量:{}/{}".format(s_num,total_num*3))
+
+  if total_num * 3 > s_num:
+    print("部分失败,正在重启...")
+    logg(__log__,"部分失败，正在重启...")
+    download_rpt()
+
+if __name__ == '__main__':
+
+  if len(sys.argv) > 1  and sys.argv[1] in ['--force','force','-f']:
+    print("重新下载财务报表...")
+    logg(__log__,"强制重新下载财务报表...")
+    download_rpt(owrt=1)
+  elif len(sys.argv) > 1 and sys.argv[1] in ['--errorcheck','errorcheck','-c']:
+    print("检查数据库错误文件...")
+  elif len(sys.argv) > 1 and sys.argv[1] in ['-h','-?','/?','--help']:
+    print("下载上市公司财务报表工具:")
+    print("{} --force|-f|force: 强制重新下载所有财务报表.".format(sys.argv[0]))
+    print("{} --errorcheck|-c: 检查数据库错误数据并重新下载财务报表.".format(sys.argv[0]))
+    print("{} --help|-h|-?|/?: 显示此帮助".format(sys.argv[0]))
+    print("不带参数: 重新下载过期(90天)财务报表")
+  else:
+    print("检查缺失及过期文件...")
+    logg(__log__,"检查缺失及过期文件...")
+    download_rpt(owrt=0)
+

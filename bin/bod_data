@@ -1,0 +1,32 @@
+#!/usr/bin/py
+"""
+董监高持股与薪酬数据
+"""
+
+import sys
+sys.path.append("../")
+
+import sys
+sys.path.append("/opt/software/stock_app/")
+from modules import load_cfg,create_engine,logg
+from modules.cog import bod_all
+from modules import tsu
+from modules import datetime
+def insert_bod(code):
+    dbe=load_cfg("../conf/conf.json")['db_engine']
+    eg = create_engine(dbe)
+    eg.connect().execute("delete from _bod_all where 股票代码='{}'".format(code))
+    df = bod_all(code)
+    df = df.drop_duplicates("姓名",keep='first')
+    df.to_sql('_bod_all',eg,index=0,if_exists='append')
+
+if __name__=='__main__':
+    stocks = tsu.get_stock_basics().index
+    logf = load_cfg('../conf/conf.json')['log']
+    logf = logf.format(prog="bod_data",ts=datetime.strftime(datetime.now(),'%Y%m%d.%H%M%S'))
+    for stock in stocks:
+        try:
+            insert_bod(stock)
+            logg(logf,'{},正在下载{}董监高信息'.format(datetime.now(),stock))
+        except:
+            logg(logf,'{},下载{}董监高信息失败'.format(datetime.now(),stock))
