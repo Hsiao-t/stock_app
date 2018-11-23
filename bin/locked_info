@@ -1,0 +1,51 @@
+#!/usr/bin/env python
+
+from requests import get
+from pandas import read_excel
+from datetime import datetime,timedelta
+from time import time
+import sys
+import os
+
+def _float(passed_num):
+  ret=passed_num
+  try:
+    ret = float(ret)
+  except:
+    pass
+  return ret
+def locked_stock_data():
+  now = datetime.now()
+  dw = now.isoweekday()
+  td = timedelta(days=dw+2)
+  pubdate = now - td
+  a = pubdate.strftime("%Y.%m.%d")
+  ct = get("http://www.chinaclear.cn/cms-rank/downloadFile?queryDate={}&type=proportion".format(a)).content
+  with open('/tmp/stock_zy.xls','wb') as fp:
+    fp.write(ct)
+  xls = read_excel("/tmp/stock_zy.xls","Sheet1")
+  xls = xls.iloc[3:]
+  xls.columns=['date','code','name','stroke_nu','am_u','am_l','shares','ratio']
+  xls = xls.applymap(_float)
+  xls.index=xls['code']
+  del xls['code']
+  return xls.sort_values('ratio')
+
+if __name__ == '__main__':
+  wd = os.path.split(os.path.realpath(__file__))[0]
+  os.chdir(wd)
+
+  sys.path.append("../")
+  from modules import *
+
+
+  conf = load_cfg('../conf/conf.json')
+  db = conf['db_engine']
+  __log__ = conf['log'].format(prog='running',ts='all')
+
+  cn = create_engine(db)
+
+  df = locked_stock_data()
+  df.to_sql('locked_data',cn,if_exists='replace')
+  print(datetime.now(),"股票质押信息{}条".format(len(df)))
+  logg(__log__,"股票质押信息{}条".format(len(df)))
