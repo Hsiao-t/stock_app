@@ -12,10 +12,11 @@ MAILTO=""
 10 21 * * 1-5 c_HsiaoTien {s_va}
 20 21 * * 1-5 c_HsiaoTien {tsu_lib}
 25 21 * * 1-5 c_HsiaoTien {csrc}
+00 08 * * 1   c_HsiaoTien {locked_data}
 00 21 * * 5 c_HsiaoTien {cons_data}
 00 20 * * 5 c_HsiaoTien {inst_data}
 00 20 * * 6 c_HsiaoTien {get_rpt}
-59 23 * * 7 c_HsiaoTien {store_rpt}
+59 23 * * 7 root {store_rpt} 2>/var/log/stockapp/store_rpt_error.log
 """ 
 def install():
     d = os.path.split(os.path.realpath(__file__))[0] + '/../bin'
@@ -26,6 +27,7 @@ def install():
     args['tsu_lib'] = td + '/tsu_lib'
     args['get_rpt'] = td + '/get_rpt --force'
     args['store_rpt'] = td + '/store_rpt'
+    args['locked_data'] = td + '/locked_info'
     args['d']=str(datetime.now())
     args['f']=os.path.realpath(__file__)
     args['csrc']=td+'/csrc_idst'
@@ -42,7 +44,7 @@ def install():
 
 def show():
     if not os.path.exists('/etc/cron.d/stock_app'):
-        print("Stock_app is not installed")
+        print("stockapp is not installed")
     else:
         with open('/etc/cron.d/stock_app') as fp:
             content = fp.read()

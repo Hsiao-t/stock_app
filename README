@@ -25,3 +25,25 @@ refresh_mat_views --更新固化视图
 --> inst_data
 --> stock_va
 --> get_rpt --> store_rpt --> refresh_mat_views
+
+数据库表命令规则（助记）
+_xxx_yyy: 内部表格，通常不提供应用直接访问
+xxx_q4a: 最新年度报表,如: income_q4a 代表最新损益表年报
+xxx_mrqa: 最新季报，如: income_mrqa 代表最新损益表季报
+xxx_q4: 某一财务指标最近五年报表，如: roe_q4
+xxx_mrq: 某一指标最近五年报表，如: roe_mrq
+xxx_yoy_xxx: year on year, 同比增长（年）
+xxx_qoq_xxx: quarter on quarter, 环比增长（季度），暂未实现
+
+基础数据表及维护程序(etl)
+报表名称: 维护程序: 所采集数据
+_bod_all: bin/bod_data: 董事会数据(网易财经)
+_cons_data: bin/cons_data: 一致预期数据(东方财富)
+_csrc: bin/csrc_idst: 证监会行业数据
+_inst_data: bin/inst_data: 机构调研数据(东方财富)
+_tbl_va: bin/stock_va: 每日估值数据(腾讯财经)
+_tsu_basics: bin/tsu_lib: 基本财经数据，获取最新股票列表(tushare.org)
+locked_data: bin/locked_data: 质押数据(中登)
+raw_is: bin/store_rpt: 财务报表-损益表-原始报表(网易财经)
+raw_bs: bin/store_rpt: 财务报表-资产负债表-原始报表(网易财经)
+raw_cf: bin/store_rpt: 财务报表-现金流量表-原始报表(网易财经)
