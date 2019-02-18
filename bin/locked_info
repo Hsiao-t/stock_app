@@ -46,6 +46,6 @@ if __name__ == '__main__':
   cn = create_engine(db)
 
   df = locked_stock_data()
-  df.to_sql('locked_data',cn,if_exists='replace')
+  df.to_sql('_locked_data',cn,if_exists='append')
   print(datetime.now(),"股票质押信息{}条".format(len(df)))
   logg(__log__,"股票质押信息{}条".format(len(df)))

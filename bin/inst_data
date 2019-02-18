@@ -5,7 +5,7 @@
 
 def inst_data(code):
     code = str(code) + '01' if str(code)[0]=='6' else str(code)+ '02'
-    s_url = 'http://soft-f9.eastmoney.com/soft/gp66.php?code={}&exp=1'.format(code)
+    s_url = 'http://f9.eastmoney.com/soft/gp66.php?code={}&exp=1'.format(code)
     txt = ro.get(s_url).text
     if txt.find('<!DOCTYPE html')>-1:
         raise RuntimeError('无此股票信息')

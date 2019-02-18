@@ -47,7 +47,7 @@ network_resources = {
   },
 
   'cons_expt': { # 一致预期数据
-    'url': 'http://soft-f9.eastmoney.com/soft/gp63.php?code={}&exp=1',
+    'url': 'http://f9.eastmoney.com/soft/gp63.php?code={}&exp=1',
     'lock': '.Nf2.lock'
   }
 
